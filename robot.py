@@ -13,6 +13,7 @@ class Robot:
     IMAGE_SIZE_X = 512
     IMAGE_SIZE_Y = 512
     LIDAR_PORT = "/dev/ttyUSB0"
+    CLAW_PIN = "À DÉTERMINER"
 
     def __init__(self):
         self.motor = Motor()

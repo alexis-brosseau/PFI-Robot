@@ -1,8 +1,10 @@
 from gpiozero import Servo
 from time import sleep
 
-# vu qu'il y a plusieurs pinces, va falloir tester les Value en classe lol
+#Vu qu'il y a plusieurs pinces, va falloir tester les Value en classe lol
 #Je crois qu'il y a un servo pour chaque pince (monter/descendre, ouvrir/fermer, droite/gauche)
+#Faudra trouver la pin de la pince, parce que sinon la création marchera pas (pince créée dans robot.py)
+
 
 class Claw:
     def __init__(self, pin, min_pulse_width=1/1000, max_pulse_width=2/1000):
