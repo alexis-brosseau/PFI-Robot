@@ -1,6 +1,7 @@
 from motor import Motor
 from window import Window
 from lidar import Lidar
+from claw import Claw
 import numpy as np
 import cv2
 
@@ -12,6 +13,7 @@ class Robot:
     IMAGE_SIZE_X = 512
     IMAGE_SIZE_Y = 512
     LIDAR_PORT = "/dev/ttyUSB0"
+    CLAW_PIN = "À DÉTERMINER"
 
     def __init__(self):
         self.motor = Motor()
@@ -20,6 +22,7 @@ class Robot:
         self.cv2 = cv2
         self.window = Window(self.cv2)
         self.lidar = Lidar(self.LIDAR_PORT, self.window)
+        self.claw = Claw()
 
     def __go_forward(self):
         self.motor.change_normal_speed()

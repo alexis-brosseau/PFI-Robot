@@ -20,6 +20,7 @@ class Lidar:
         self._scanning_thread = Thread(target=self._scan_area)
         self._flag = False
         self._window = window
+        self._close_distance_threshold = 500 #distance where the robot can detect object in path
         
     def start_thread(self):
         self._scanning_thread.start()
@@ -78,3 +79,18 @@ class Lidar:
     
     def _convert_to_pixel(self, point):
         return self.ROBOT_POSITION[0] + int(((self.ROBOT_POSITION[0] * point) / self.MAX_DISTANCE))
+    
+    def is_object_close(self):
+        """
+        Check if an object is close to the robot
+        """
+        if self._is_connected():
+            try:
+                data = next(self.get_gen())
+                for angle, distance in data.items():
+                    if self.MIN_DISTANCE < distance < self._close_distance_threshold:
+                        print(f"Objet détecté proche! Angle: {angle}, Distance: {distance} mm")
+                        return True
+            except Exception as error:
+                print(f"erreur s'est produite: {error}")
+        return False
