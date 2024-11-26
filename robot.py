@@ -34,7 +34,7 @@ class Robot:
         while self.state != State().STOP:            
             time.sleep(0.25)
             card_index = round(self.orientation.ori_mag / 45) % 8
-            print(f"\rRelative: {round(self.orientation.ori_rel, 2)}, Magnetique: {round(self.orientation.ori_mag, 2)} {Orientation.CARDINAUX[card_index]}   ", end="")
+            print(f"\rRelative: {round(self.orientation.get_rotation_degrees, 2)}, Magnetique: {round(self.orientation.ori_mag, 2)} {Orientation.CARDINAUX[card_index]}   ", end="")
             
     def __go_forward(self):
         self.motor.change_normal_speed()
@@ -107,6 +107,5 @@ class Robot:
 
         while not self.end:
             self.__read_keys()
-            
             self.window.display()
     

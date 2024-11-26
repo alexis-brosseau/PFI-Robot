@@ -27,6 +27,10 @@ class Orientation:
         self.ori_rel = 0
         self.ori_mag = 0
         
+    #get l'orientation relative
+    def get_rotation_degrees(self):
+        return self.ori_rel
+        
     # Calibrer le magnetometre
     def __calibrer(self):
         while self.is_active:
@@ -97,7 +101,6 @@ class Orientation:
     def arreter(self):
         self.is_active = False
         self.__thread.join()
-        
         
     def calibrer(self):
         self.__demarrerThread(self.__calibrer)
