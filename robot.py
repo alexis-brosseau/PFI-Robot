@@ -1,9 +1,13 @@
+from threading import Thread
 from motor import Motor
 from window import Window
 from lidar import Lidar
+from orientation import Orientation
 from claw import Claw
+from state import State
 import numpy as np
 import cv2
+import time
 
 class Robot:
     PIN_ENC_LEFT = 27
@@ -13,7 +17,7 @@ class Robot:
     IMAGE_SIZE_X = 512
     IMAGE_SIZE_Y = 512
     LIDAR_PORT = "/dev/ttyUSB0"
-    CLAW_PIN = "À DÉTERMINER"
+    CLAW_PIN = "/dev/ttyUSB1" # A MODIFIER
 
     def __init__(self):
         self.motor = Motor()
@@ -22,26 +26,41 @@ class Robot:
         self.cv2 = cv2
         self.window = Window(self.cv2)
         self.lidar = Lidar(self.LIDAR_PORT, self.window)
-        self.claw = Claw()
-
+        self.claw = Claw(self.CLAW_PIN)
+        self.state = State().STOP
+        self.orientation = Orientation()
+        
+    def afficher_info(self):
+        while self.state != State().STOP:            
+            time.sleep(0.25)
+            card_index = round(self.orientation.ori_mag / 45) % 8
+            print(f"\rRelative: {round(self.orientation.ori_rel, 2)}, Magnetique: {round(self.orientation.ori_mag, 2)} {Orientation.CARDINAUX[card_index]}   ", end="")
+            
     def __go_forward(self):
         self.motor.change_normal_speed()
         self.motor.move(1,1,0,0)
+        self.state = State.FORWARD
+
 
     def __go_backward(self):
         self.motor.change_normal_speed()
         self.motor.move(0,0,1,1)
+        self.state = State.BACKWARD
+
 
     def __turn_right(self):
         self.motor.change_turn_speed()
         self.motor.move(0,1,1,0)
+        self.state = State.TURN_RIGHT
 
     def __turn_left(self):
         self.motor.change_turn_speed()
         self.motor.move(1,0,0,1)
+        self.state = State.TURN_LEFT
 
     def __brake(self):
         self.motor.move(0,0,0,0)
+        self.state = State.BRAKE
 
     def __increase_speed(self):
         self.motor.change_normal_speed()
@@ -54,6 +73,7 @@ class Robot:
     def __stop(self):
         self.lidar.stop_thread()
         self.motor.stop_motors()
+        self.state = State.STOP
     
     def __read_keys(self):
         key = self.cv2.waitKey(self.REFRESH_RATE)
@@ -78,8 +98,15 @@ class Robot:
 
     def execute_program(self):
         self.lidar.start_thread()
+        self.orientation.calibrer()
+        input("Calibration, appuyez sur une touche pour continuer...")
+
+        self.orientation.demarrer()
+        Thread(target=self.afficher_info).start()
+        input("Appuyez sur une touche pour arreter le robot...\n")
 
         while not self.end:
             self.__read_keys()
+            
             self.window.display()
     
