@@ -1,5 +1,6 @@
 from threading import Thread
 from motor import Motor
+from radio_navigation import RadioNavigation
 from window import Window
 from lidar import Lidar
 from orientation import Orientation
@@ -18,6 +19,7 @@ class Robot:
     IMAGE_SIZE_Y = 512
     LIDAR_PORT = "/dev/ttyUSB0"
     CLAW_PIN = "/dev/ttyUSB1" # A MODIFIER
+    RADIO_NAV_PIN = "/dev/ttyUSB2" # A MODIFIER
 
     def __init__(self):
         self.motor = Motor()
@@ -29,6 +31,7 @@ class Robot:
         self.claw = Claw(self.CLAW_PIN)
         self.state = State().STOP
         self.orientation = Orientation()
+        self.radio_navigation = RadioNavigation("/dev/ttyUSB2")
         
     def afficher_info(self):
         while self.state != State().STOP:            
@@ -69,6 +72,22 @@ class Robot:
     def __decrease_speed(self):
         self.motor.change_normal_speed()
         self.motor.speed_down()
+    
+    def __turn_90_degrees(self):
+        while self.orientation.ori_rel < 90:
+            self.__turn_right()
+        self.__brake()
+    
+    def __start_path(self):
+        Thread(target=self.radio_navigation.has_traveled_more_than_segments).start()
+        while(not self.radio_navigation.has_traveled_more_than_segments()):
+            self.__go_forward()
+            self.__turn_90_degrees()
+            
+        self.__brake()
+        
+        
+        pass
 
     def __stop(self):
         self.lidar.stop_thread()
@@ -90,8 +109,8 @@ class Robot:
             self.__brake()
         elif key==ord('.'):
             self.__increase_speed()
-        elif key==ord(','):
-            self.__decrease_speed()
+        elif key==ord('q'):
+            self.__start_path()
         elif key==ord('x'):
             self.__stop()
             self.end = True
