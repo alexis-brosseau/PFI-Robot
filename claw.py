@@ -32,6 +32,14 @@ class Claw:
     def close(self):
         print("Fermeture de la pince")
         self.servo_claw.min()
+    
+    def move_up(self):
+        print("Montée de la pince")
+        self.servo_up_down.max()
+
+    def move_down(self):
+        print("Descente de la pince")
+        self.servo_up_down.min()
         
     def set_position(self, value):
         """
