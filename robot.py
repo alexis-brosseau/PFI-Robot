@@ -18,26 +18,26 @@ class Robot:
     IMAGE_SIZE_X = 512
     IMAGE_SIZE_Y = 512
     LIDAR_PORT = "/dev/ttyUSB0"
-    CLAW_PIN = "/dev/ttyUSB1" # A MODIFIER
-    RADIO_NAV_PIN = "/dev/ttyUSB2" # A MODIFIER
+    CLAW_PINS = [16, 20, 21]  # GPIO pins for the claw
+    RADIO_NAV_PIN = "/dev/ttyACM0" 
 
     def __init__(self):
         self.motor = Motor()
         self.end = False
-
         self.cv2 = cv2
         self.window = Window(self.cv2)
-        self.lidar = Lidar(self.LIDAR_PORT, self.window)
-        self.claw = Claw(self.CLAW_PIN)
-        self.state = State().STOP
+        self.window.add_screen('Plan', np.zeros((self.IMAGE_SIZE_X, self.IMAGE_SIZE_Y, 3), np.uint8))
+        self.lidar = Lidar(self.LIDAR_PORT)
+        self.claw = Claw(self.CLAW_PINS)
+        self.state = State().BRAKE
         self.orientation = Orientation()
-        self.radio_navigation = RadioNavigation("/dev/ttyUSB2")
+        self.radio_navigation = RadioNavigation(self.RADIO_NAV_PIN)
         
     def afficher_info(self):
         while self.state != State().STOP:            
             time.sleep(0.25)
             card_index = round(self.orientation.ori_mag / 45) % 8
-            print(f"\rRelative: {round(self.orientation.get_rotation_degrees, 2)}, Magnetique: {round(self.orientation.ori_mag, 2)} {Orientation.CARDINAUX[card_index]}   ", end="")
+            print(f"\rRelative: {round(self.orientation.ori_rel, 2)}, Magnetique: {round(self.orientation.ori_mag, 2)} {Orientation.CARDINAUX[card_index]}   ", end="")
             
     def __go_forward(self):
         self.motor.change_normal_speed()
@@ -79,16 +79,17 @@ class Robot:
         self.__brake()
     
     def __start_path(self):
-        Thread(target=self.radio_navigation.has_traveled_more_than_segments).start()
-        while(not self.radio_navigation.has_traveled_more_than_segments()):
+        while not self.radio_navigation.has_traveled_more_than_segments():
+            print("Début du parcours")
             self.__go_forward()
             self.__turn_90_degrees()
-            
         self.__brake()
+    
+    def __open_claw(self):
+        self.claw.open()
+        time.sleep(1)
+        self.claw.close()
         
-        
-        pass
-
     def __stop(self):
         self.lidar.stop_thread()
         self.motor.stop_motors()
@@ -111,6 +112,8 @@ class Robot:
             self.__increase_speed()
         elif key==ord('q'):
             self.__start_path()
+        elif key==ord('c'):
+            self.__open_claw()
         elif key==ord('x'):
             self.__stop()
             self.end = True
@@ -118,13 +121,9 @@ class Robot:
     def execute_program(self):
         self.lidar.start_thread()
         self.orientation.calibrer()
-        input("Calibration, appuyez sur une touche pour continuer...")
 
         self.orientation.demarrer()
         Thread(target=self.afficher_info).start()
-        input("Appuyez sur une touche pour arreter le robot...\n")
-
         while not self.end:
             self.__read_keys()
             self.window.display()
-    

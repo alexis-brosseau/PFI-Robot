@@ -42,11 +42,11 @@ class Lidar:
         self.__obj.StopScanning()
         self.__obj.Disconnect()
 
-    def arreter_scan(self):
+    def stop_thread(self):
         self.est_demarrer = False
         self.__thread.join()
 
-    def demarrer_scan(self):
+    def start_thread(self):
         if (self.est_demarrer):
             self.arreter_scan()
         self.est_demarrer = True
