@@ -3,17 +3,11 @@ import serial
 import time
 import math
 
-RECTANGLE_SEGMENTS = [2, 4]  # 2 segments pour le rectangle que le robot va parcourir (2mx4m)
-
 class RadioNavigation:
     def __init__(self, port):
         self.port = port
         self.connection = self.connect_to_device(port)
         self.initial_position = self.get_position()
-        self.pos_x = 0
-        self.pos_y = 0
-        self.distance_x = 0
-        self.distance_y = 0
 
     def connect_to_device(self, port):
         try:
@@ -57,15 +51,18 @@ class RadioNavigation:
             print("Connection is not open.")
         return None
 
-    def has_traveled_more_than_segments(self):
-        current_position = self.get_position()
-        if not current_position or not self.initial_position:
-            return False
-
-        distance_x = abs(current_position['x'] - self.initial_position['x'])
-        distance_y = abs(current_position['y'] - self.initial_position['y'])
-
-        return distance_x > RECTANGLE_SEGMENTS[0] or distance_y > RECTANGLE_SEGMENTS[1]
+    def follow_rectangle(self):
+        if not self.initial_position:
+            print("Position initiale pas trouvée.")
+            return
+        try:
+            for segment_length in RECTANGLE_SEGMENTS * 2:  # loop à travers les 2 segments du rectangle 2x
+                print(f"Moving forward {segment_length} meters.")
+                self.go_forward_until_distance(segment_length)
+                print("Turning 90 degrees.")
+                self.__turn_90_degrees()
+        except Exception as e:
+            print(f"Error while following rectangle: {e}")
 
     def close_connection(self):
         if self.connection and self.connection.is_open:

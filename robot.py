@@ -1,3 +1,4 @@
+import math
 from threading import Thread
 from motor import Motor
 from radio_navigation import RadioNavigation
@@ -20,6 +21,7 @@ class Robot:
     LIDAR_PORT = "/dev/ttyUSB0"
     CLAW_PINS = [16, 20, 21]  # GPIO pins for the claw
     RADIO_NAV_PIN = "/dev/ttyACM0" 
+    RECTANGLE_SEGMENTS = [2, 4]  # 2 segments pour le rectangle que le robot va parcourir (2mx4m)
 
     def __init__(self):
         self.motor = Motor()
@@ -79,16 +81,43 @@ class Robot:
         self.__brake()
     
     def __start_path(self):
-        while not self.radio_navigation.has_traveled_more_than_segments():
-            print("Début du parcours")
+        if not self.radio_navigation.initial_position:
+            print("Position initiale pas trouvée.")
+            return
+        try:
+            for segment_length in self.RECTANGLE_SEGMENTS * 2:  # loop à travers les 2 segments du rectangle 2x
+                self.go_forward_until_distance(segment_length)
+                self.__turn_90_degrees()
+        except Exception as e:
+            print(f"{e}")
+
+    def go_forward_until_distance(self, target_distance):
+        start_position = self.radio_navigation.get_position()
+        if not start_position:
+            return
+        
+        while True:
             self.__go_forward()
-            self.__turn_90_degrees()
-        self.__brake()
+            current_position = self.radio_navigation.get_position()
+            if not current_position:
+                break
+            
+            traveled_x = abs(current_position['x'] - start_position['x'])
+            traveled_y = abs(current_position['y'] - start_position['y'])
+            traveled_distance = math.sqrt(traveled_x ** 2 + traveled_y ** 2)
+            
+            print(f"Traveled distance: {traveled_distance:.2f} meters.")
+            if traveled_distance >= target_distance:
+                print("Distance atteinte.")
+                break
     
     def __open_claw(self):
         self.claw.open()
         time.sleep(1)
+    
+    def __close_claw(self):
         self.claw.close()
+        time.sleep(1)
         
     def __stop(self):
         self.lidar.stop_thread()
