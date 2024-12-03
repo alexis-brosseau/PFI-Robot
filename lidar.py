@@ -7,13 +7,14 @@ import math
 
 class Lidar:
     
-    ANGLE_OFFSET = 90
-    
-    def __init__(self, port):
+    def __init__(self, port, offset, fov, range):
         self.__obj = PyLidar3.YdLidarX4(port) 
         self.__thread = None
         self.est_demarrer = False
-        self.observateurs = []
+        self.listeners = []
+        self.offset = offset
+        self.fov = fov
+        self.range = range
 
 
     def __scan(self):
@@ -27,20 +28,18 @@ class Lidar:
         while (self.est_demarrer):
             data = next(gen) # Dictionnaire: data[0:359]
             
-            pos = []
-            
-            for angle in range(360):
-                x = int(data[angle] * math.cos(math.radians((angle + self.ANGLE_OFFSET) % 360)))
-                y = int(data[angle] * math.sin(math.radians((angle + self.ANGLE_OFFSET) % 360)))
-                pos.append((x, y))
-            
-            for obs in self.observateurs:
-                obs(pos)
-
+            for angle in range(Lidar.FOV):
+                if (data[angle + self.offset] < self.range):
+                    for listener in self.listeners:
+                        listener()
+                    
             time.sleep(0.5)
         
         self.__obj.StopScanning()
         self.__obj.Disconnect()
+
+    def on_obstacle(self, callback):
+        self.listeners.append(callback)
 
     def stop_thread(self):
         self.est_demarrer = False
