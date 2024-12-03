@@ -18,6 +18,9 @@ class Robot:
     IMAGE_SIZE_X = 512
     IMAGE_SIZE_Y = 512
     LIDAR_PORT = "/dev/ttyUSB0"
+    LIDAR_OFFSET = 45
+    LIDAR_FOV = 90
+    LIDAR_RANGE = 300
     CLAW_PINS = [16, 20, 21]  # GPIO pins for the claw
     RADIO_NAV_PIN = "/dev/ttyACM0" 
 
@@ -27,7 +30,7 @@ class Robot:
         self.cv2 = cv2
         self.window = Window(self.cv2)
         self.window.add_screen('Plan', np.zeros((self.IMAGE_SIZE_X, self.IMAGE_SIZE_Y, 3), np.uint8))
-        self.lidar = Lidar(self.LIDAR_PORT)
+        self.lidar = Lidar(self.LIDAR_PORT, self.LIDAR_OFFSET, self.LIDAR_FOV, self.LIDAR_RANGE)
         self.claw = Claw(self.CLAW_PINS)
         self.state = State().BRAKE
         self.orientation = Orientation()
@@ -40,6 +43,11 @@ class Robot:
             print(f"\rRelative: {round(self.orientation.ori_rel, 2)}, Magnetique: {round(self.orientation.ori_mag, 2)} {Orientation.CARDINAUX[card_index]}   ", end="")
             
     def __go_forward(self):
+
+        if self.lidar.obstacle_detecte:
+            self.__brake()
+            return
+
         self.motor.change_normal_speed()
         self.motor.move(1,1,0,0)
         self.state = State.FORWARD
@@ -119,7 +127,7 @@ class Robot:
             self.end = True
 
     def execute_program(self):
-        self.lidar.start_thread()
+
         self.orientation.calibrer()
 
         self.orientation.demarrer()
