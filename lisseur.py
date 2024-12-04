@@ -23,3 +23,7 @@ class Lisseur:
         
         # moyenne
         self.moyenne = sum(copy) / len(copy)
+        
+    def renitialiser(self):
+        self.data = []
+        self.moyenne = 0

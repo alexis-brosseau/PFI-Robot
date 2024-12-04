@@ -55,7 +55,6 @@ class Orientation:
                 if (self.etat == self.ROTATION):
                     self.__rotation_data[1] = (ugx, time.time())
                     self.ori_rel += self.calc_rotation()
-                    self.ori_rel = self.ori_rel % 360
                 
                 self.etat = self.IMMOBILE
             
@@ -65,7 +64,6 @@ class Orientation:
             elif self.etat == self.ROTATION:
                 self.__rotation_data[1] = (ugx, time.time())
                 self.ori_rel += self.calc_rotation()
-                self.ori_rel = self.ori_rel % 360
             
             # Orientation magnetique
             _, my, mz = self.__imu.read_magnetometer_data()

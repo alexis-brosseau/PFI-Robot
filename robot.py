@@ -1,6 +1,7 @@
 import math
 import math
 from threading import Thread
+from lisseur import Lisseur
 from motor import Motor
 from radio_navigation import RadioNavigation
 from window import Window
@@ -20,12 +21,13 @@ class Robot:
     IMAGE_SIZE_X = 512
     IMAGE_SIZE_Y = 512
     LIDAR_PORT = "/dev/ttyUSB0"
-    LIDAR_FOV = 60
-    LIDAR_OFFSET = 150
+    LIDAR_FOV = 40
+    LIDAR_OFFSET = 160
     LIDAR_RANGE = 600
     CLAW_PINS = [16, 20, 21]  # GPIO pins for the claw
     RADIO_NAV_PIN = "/dev/ttyACM0" 
-    RECTANGLE_SEGMENTS = [1, 2]  # 2 segments pour le rectangle que le robot va parcourir (2mx4m)
+    RECTANGLE_SEGMENTS = [1, 0.5]  # 2 segments pour le rectangle que le robot va parcourir (2mx4m)
+    TURN_BRAKE_OFFSET = 5  # Offset pour le freinage lors d'un virage (en degrés)
 
     def __init__(self):
         self.motor = Motor()
@@ -38,6 +40,7 @@ class Robot:
         self.state = State().BRAKE
         self.orientation = Orientation()
         self.radio_navigation = RadioNavigation(self.RADIO_NAV_PIN)
+        self.lisseur_distance = Lisseur(8)
         
     def afficher_info(self):
         while self.state != State().STOP:            
@@ -84,34 +87,43 @@ class Robot:
         self.motor.speed_down()
     
     def __turn_90_degrees(self):
-        while self.orientation.ori_rel < 90:
-            self.__turn_right()
+        initial_orientation = self.orientation.ori_rel
+        target_orientation = initial_orientation + (90 - self.TURN_BRAKE_OFFSET)
+
+        self.__turn_right()
+        
+        while self.orientation.ori_rel < target_orientation:
+            time.sleep(0.01)
         self.__brake()
+        
     
     def follow_rectangle(self):
         print(self.radio_navigation.initial_position)
         if not self.radio_navigation.initial_position:
-            print("Initial position not set. Cannot follow the rectangle.")
+            self.radio_navigation.initial_position = self.radio_navigation.get_position()
             return
         
         try:
-            for segment_length in self.RECTANGLE_SEGMENTS * 2:  # Repeat [2, 4] twice
+            for segment_length in self.RECTANGLE_SEGMENTS * 2:  # Repeat [2, 1] twice
                 print(f"Moving forward {segment_length} meters.")
                 self.go_forward_until_distance(segment_length)
                 print("Turning 90 degrees.")
                 self.__turn_90_degrees()
+            
+            self.radio_navigation.initial_position = None
         except Exception as e:
             print(f"Error while following rectangle: {e}")
             
     def go_forward_until_distance(self, target_distance):
-        start_position = self.radio_navigation.get_position()
+        start_position = self.radio_navigation.current_position
+        self.lisseur_distance.renitialiser()
         if not start_position:
-            print("Cannot determine start position. Aborting forward movement.")
+            start_position = self.radio_navigation.get_position()
             return
         
         while True:
             self.__go_forward()
-            current_position = self.radio_navigation.get_position()
+            current_position = self.radio_navigation.current_position
             if not current_position:
                 print("Lost connection to device while moving forward.")
                 break
@@ -119,11 +131,12 @@ class Robot:
             # Calculate traveled distance
             traveled_x = abs(current_position['x'] - start_position['x'])
             traveled_y = abs(current_position['y'] - start_position['y'])
-            traveled_distance = math.sqrt(traveled_x * 2 + traveled_y * 2)
+            self.lisseur_distance.ajouter(math.sqrt(traveled_x ** 2 + traveled_y ** 2),False)
+            traveled_distance = self.lisseur_distance.moyenne
             
-            print(f"Traveled distance: {traveled_distance:.2f} meters.")
             if traveled_distance >= target_distance:
                 print("Target distance reached.")
+                self.__brake()
                 break
     
     def __open_claw(self):
@@ -133,7 +146,15 @@ class Robot:
     def __close_claw(self):
         self.claw.close()
         time.sleep(1)
-        
+            
+    def __up_claw(self):
+        self.claw.move_up()
+        time.sleep(1)
+    
+    def __down_claw(self):
+        self.claw.move_down()
+        time.sleep(1)
+    
     def __stop(self):
         self.lidar.stop_thread()
         self.motor.stop_motors()
@@ -159,7 +180,15 @@ class Robot:
         elif key==ord('q'):
             self.follow_rectangle()
         elif key==ord('c'):
-            self.__open_claw()
+            if self.claw.is_open:
+                self.__close_claw()
+            else:
+                self.__open_claw()
+        elif key==ord('v'):
+            if self.claw.is_up:
+                self.__down_claw()
+            else:
+                self.__up_claw()
         elif key==ord('x'):
             self.__stop()
             self.end = True
@@ -167,13 +196,11 @@ class Robot:
     def execute_program(self):
 
         self.lidar.on_obstacle(lambda robot = self: robot.__brake() if (robot.state == State.FORWARD) else None)
-        self.lidar.on_obstacle(lambda: print("Obstacle"))
 
-        self.orientation.calibrer()
         self.orientation.demarrer()
         self.lidar.start_thread()
+        self.radio_navigation.start_monitoring()
         
-        # Thread(target=self.afficher_info).start()
         while not self.end:
             self.__read_keys()
             self.window.display()
