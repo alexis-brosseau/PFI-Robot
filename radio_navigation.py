@@ -10,6 +10,7 @@ class RadioNavigation:
         self.port = port
         self.connection = self.connect_to_device(port)
         self.tag = None
+        self.is_monitoring = False
 
         if (self.connection.is_open):
             self.tag = ActiveTag(self.connection)
@@ -29,7 +30,10 @@ class RadioNavigation:
 
     def get_position(self):
         if self.tag:
-            position =  self.tag.position
+            try:
+                position =  self.tag.position
+            except:
+                return None
             return {
                 'x': position.x_m,
                 'y': position.y_m,
@@ -46,11 +50,21 @@ class RadioNavigation:
             print("Serial connection closed.")
             
     def start_monitoring(self):
+        if (self.is_monitoring):
+            self.stop_monitoring()
+        
+        self.is_monitoring = True    
         self.monitoring_thread = threading.Thread(target=self.monitor_position)
         self.monitoring_thread.start()
 
+    def stop_monitoring(self):
+         self.is_monitoring = False
+         self.monitoring_thread.join()
+        
+
     def monitor_position(self):
-        while True:
+        while self.is_monitoring:
             position = self.get_position()
             if position:
                 self.current_position = position
+            time.sleep(0.05)
