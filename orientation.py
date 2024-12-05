@@ -16,8 +16,8 @@ class Orientation:
     def __init__(self):
         self.__imu = ICM20948()
         self.__lisseur_gx = Lisseur(5)
-        self.__lisseur_my = Lisseur(200)
-        self.__lisseur_mz = Lisseur(200)
+        self.__lisseur_my = Lisseur(100)
+        self.__lisseur_mz = Lisseur(100)
         self.__rotation_data = [(0, 0), (0, 0)]
         self.__thread = None
         

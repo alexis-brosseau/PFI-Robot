@@ -13,6 +13,8 @@ import numpy as np
 import cv2
 import time
 
+POSITION_BOITE = (7, 2.15)
+
 class Robot:
     PIN_ENC_LEFT = 27
     PIN_ENC_RIGHT = 22
@@ -41,8 +43,15 @@ class Robot:
         self.orientation = Orientation()
         self.radio_navigation = RadioNavigation(self.RADIO_NAV_PIN)
         self.lisseur_distance = Lisseur(8)
+    
+    def afficher_position(self):
+        while self.state != State().STOP:
+            time.sleep(0.25)
+            position = self.radio_navigation.current_position
+            if position:
+                print(f"\rPosition: {position['x']}, {position['y']}   ", end="")
         
-    def afficher_info(self):
+    def afficher_orientation(self):
         while self.state != State().STOP:            
             time.sleep(0.25)
             card_index = round(self.orientation.ori_mag / 45) % 8
@@ -138,6 +147,33 @@ class Robot:
                 print("Target distance reached.")
                 self.__brake()
                 break
+            
+    def go_to(self, position):
+
+        x = position[0]
+        y = position[1]
+        start_position = self.radio_navigation.current_position
+        
+        while not start_position:
+            start_position = self.radio_navigation.get_position()
+            time.sleep(0.1)
+        
+        diff_position = (x - start_position['x'], y - start_position['y'])
+        angle = math.atan2(diff_position[1], diff_position[0]) * 180 / math.pi
+        angle = self.orientation.ori_rel + angle - self.TURN_BRAKE_OFFSET
+        
+        print(f"angle: {angle}")
+        print(f"orientation: {self.orientation.ori_rel%360}")
+        print(f"diff_position: {diff_position}")
+        
+        if self.orientation.ori_rel < angle:
+            self.__turn_right()
+            while self.orientation.ori_rel  < angle:
+                time.sleep(0.01)
+            self.__brake()
+        
+        self.go_forward_until_distance(math.sqrt(diff_position[0] ** 2 + diff_position[1] ** 2))
+        
     
     def __open_claw(self):
         self.claw.open()
@@ -154,6 +190,7 @@ class Robot:
     def __down_claw(self):
         self.claw.move_down()
         time.sleep(1)
+
     
     def __stop(self):
         self.lidar.stop_thread()
@@ -189,6 +226,8 @@ class Robot:
                 self.__down_claw()
             else:
                 self.__up_claw()
+        elif key==ord('z'):
+            self.go_to(POSITION_BOITE)
         elif key==ord('x'):
             self.__stop()
             self.end = True
@@ -196,7 +235,7 @@ class Robot:
     def execute_program(self):
 
         self.lidar.on_obstacle(lambda robot = self: robot.__brake() if (robot.state == State.FORWARD) else None)
-
+        
         self.orientation.demarrer()
         self.lidar.start_thread()
         self.radio_navigation.start_monitoring()
