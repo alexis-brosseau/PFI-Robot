@@ -52,6 +52,7 @@ class Lidar:
         
         self.__obj.StopScanning()
         self.__obj.Disconnect()
+        self.__obj.Reset()
 
     def on_obstacle(self, callback):
         self.__listeners.append(callback)
