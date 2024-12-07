@@ -13,7 +13,7 @@ import numpy as np
 import cv2
 import time
 
-POSITION_BOITE = (7, 2.15)
+POSITION_BOITE = (4.2, 1.83)
 
 class Robot:
     PIN_ENC_LEFT = 27
@@ -29,7 +29,7 @@ class Robot:
     CLAW_PINS = [16, 20, 21]  # GPIO pins for the claw
     RADIO_NAV_PIN = "/dev/ttyACM0" 
     RECTANGLE_SEGMENTS = [1, 0.5]  # 2 segments pour le rectangle que le robot va parcourir (2mx4m)
-    TURN_BRAKE_OFFSET = 5  # Offset pour le freinage lors d'un virage (en degrés)
+    TURN_BRAKE_OFFSET = 0  # Offset pour le freinage lors d'un virage (en degrés)
 
     def __init__(self):
         self.motor = Motor()
@@ -158,19 +158,23 @@ class Robot:
             start_position = self.radio_navigation.get_position()
             time.sleep(0.1)
         
-        diff_position = (x - start_position['x'], y - start_position['y'])
-        angle = math.atan2(diff_position[1], diff_position[0]) * 180 / math.pi
-        angle = self.orientation.ori_rel + angle - self.TURN_BRAKE_OFFSET
+        diff_position = (y - start_position['y'], x - start_position['x'])
+        angle = math.atan2(diff_position[0], diff_position[1]) * 180 / math.pi
+        angle = 360 - (angle + 360) % 360
+
+        print(f"Start x: {start_position['x']}, y: {start_position['y']}")
+        print(f"Point x: {x}, y: {y}")
+        print(f"Angle: {angle}")
+        print(f"Orientation: {self.orientation.ori_rel}")
+
+        angle += self.orientation.ori_rel - self.TURN_BRAKE_OFFSET
         
-        print(f"angle: {angle}")
-        print(f"orientation: {self.orientation.ori_rel%360}")
-        print(f"diff_position: {diff_position}")
+        self.__turn_right()
+        while self.orientation.ori_rel < angle:
+            time.sleep(0.01)
+        self.__brake()
         
-        if self.orientation.ori_rel < angle:
-            self.__turn_right()
-            while self.orientation.ori_rel  < angle:
-                time.sleep(0.01)
-            self.__brake()
+        print(f"Orientation: {self.orientation.ori_rel}")
         
         self.go_forward_until_distance(math.sqrt(diff_position[0] ** 2 + diff_position[1] ** 2))
         
@@ -228,12 +232,15 @@ class Robot:
                 self.__up_claw()
         elif key==ord('z'):
             self.go_to(POSITION_BOITE)
+        elif key==ord('l'):
+            self.go_to2(POSITION_BOITE)
         elif key==ord('x'):
             self.__stop()
             self.end = True
 
     def execute_program(self):
 
+        self.lidar.on_obstacle(print("Obstacle Détecté"))
         self.lidar.on_obstacle(lambda robot = self: robot.__brake() if (robot.state == State.FORWARD) else None)
         
         self.orientation.demarrer()
