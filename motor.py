@@ -7,8 +7,8 @@ class Motor:
     IN4 = 14
     ENA = 13
     ENB = 18
-    speed = 0.5
-    TURN_SPEED = 0.75
+    speed = 0.6
+    TURN_SPEED = 0.8
 
     def __init__(self):
         self.motor_left = PWMOutputDevice(pin=self.ENA, frequency=1000)
